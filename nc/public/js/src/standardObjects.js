@@ -3,15 +3,16 @@ import TWEEN from '../tween/src/Tween.js'
 
 class Camera3D {
 
-  constructor(name, fov, ratio, near, far, speed) {
+  constructor(name, fov, ratio, near, far, speed, mouseOrientation) {
     this.name = name
     this.camera = new THREE.PerspectiveCamera( fov, ratio, near, far )
     this.keysAnim = { origin: new THREE.Vector3( 0,0,0 ), target: new THREE.Vector3( 1,0,0 )}
     this.speed = speed
+    this.mouseOrientation = mouseOrientation
     this.tween = null
   }
 
-  // animate mesh position with tween
+  // animate position along tween
   tweenSlicePosition(spline, target, time, easemode, delay, repeat, yoyoIsActivated){
     this.tween = new TWEEN.Tween(this.keysAnim.origin)
       .to(this.keysAnim.target, time)
@@ -54,7 +55,7 @@ class Geometry3D {
   }
 
   // get mesh
-  drawMesh(size, segments, color){
+  drawObject(size, segments, color){
     let geometry
     switch(this.type){
       case 'sphere' :
@@ -122,4 +123,70 @@ class Ligth3D {
   }
 }
 
-export {Camera3D, Spline3D, Geometry3D, Ligth3D }
+class ParticlesPlane3D {
+  constructor(name, amount, separation, amplitudePosition, amplitudeScale, amplitude, speed, speedMax ) {
+    this.name = name
+    this.amountX = amount
+    this.amountY = amount
+    this.separation = separation
+    this.particles = null
+    this.count = 0
+    this.amplitudePosition = amplitudePosition
+    this.amplitudeScale = amplitudeScale
+    this.amplitudeSpeed = amplitude
+    this.dirSpeedOrign = speed
+    this.dirSpeed = speed
+    this.dirSpeedMax = speedMax
+  }
+
+  // get particles
+  draw ( size, color){
+    let particles = new THREE.Group()
+    const geo = new THREE.SphereBufferGeometry(size)
+    const mat = new THREE.MeshBasicMaterial({color: color})
+    for (var ix = 0; ix < this.amountX; ix++) {
+  		for (var iy = 0; iy < this.amountY; iy++) {
+  				const particle = new THREE.Mesh(geo,mat)
+  				particle.position.x = ix * this.separation - ((this.amountY * this.separation) / 2)
+  				particle.position.z = iy * this.separation - ((this.amountY * this.separation) / 2)
+  				particles.add(particle)
+  		}
+    }
+    return particles
+  }
+
+  update(){
+    this.waveAnimation()
+    this.moveDircetion()
+
+    if(this.dirSpeed > this.dirSpeedOrign) this.dirSpeed -=this.dirSpeed/50
+    else this.dirSpeed = this.dirSpeedOrign
+  }
+
+  waveAnimation(){
+    let i = 0
+    for (var ix = 0; ix < this.amountX; ix++) {
+      for (var iy = 0; iy < this.amountY; iy++) {
+        let particle = this.particles.children[i++]
+        particle.position.y = (Math.sin((ix + this.count) * 0.3) * this.amplitudePosition) + (Math.sin((iy + this.count) * 0.5) * this.amplitudePosition)
+        particle.scale.x = particle.scale.y = particle.scale.z = (Math.sin((ix + this.count) * 0.3) + 1) * this.amplitudeScale + (Math.sin((iy + this.count) * 0.5) + 1) * this.amplitudeScale
+      }
+    }
+    this.count += this.amplitudeSpeed
+  }
+
+  moveDircetion(){
+    let i = 0
+    for (var ix = 0; ix < this.amountX; ix++) {
+      for (var iy = 0; iy < this.amountY; iy++) {
+        let particle = this.particles.children[i++]
+        particle.position.z += this.dirSpeed
+        if(particle.position.z > this.amountX * this.separation / 2) particle.position.z = -this.amountX * this.separation / 2
+        else if(particle.position.z < this.amountX * this.separation / -2) particle.position.z = this.amountX * this.separation / 2
+      }
+    }
+  }
+
+}
+
+export {Camera3D, Spline3D, Geometry3D, Ligth3D, ParticlesPlane3D }
