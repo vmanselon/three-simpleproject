@@ -1,0 +1,117 @@
+{
+    "asset" : {
+        "generator" : "Khronos glTF Blender I/O v0.9.36",
+        "version" : "2.0"
+    },
+    "scene" : 0,
+    "scenes" : [
+        {
+            "name" : "Scene",
+            "nodes" : [
+                0
+            ]
+        }
+    ],
+    "nodes" : [
+        {
+            "mesh" : 0,
+            "name" : "Castle_OBJ_obj"
+        }
+    ],
+    "materials" : [
+        {
+            "doubleSided" : true,
+            "name" : "default.001",
+            "pbrMetallicRoughness" : {
+                "baseColorFactor" : [
+                    1,
+                    1,
+                    1,
+                    1
+                ],
+                "metallicFactor" : 0,
+                "roughnessFactor" : 0.4343145787715912
+            }
+        }
+    ],
+    "meshes" : [
+        {
+            "name" : "Mesh.001",
+            "primitives" : [
+                {
+                    "attributes" : {
+                        "POSITION" : 0,
+                        "NORMAL" : 1,
+                        "TEXCOORD_0" : 2
+                    },
+                    "indices" : 3,
+                    "material" : 0
+                }
+            ]
+        }
+    ],
+    "accessors" : [
+        {
+            "bufferView" : 0,
+            "componentType" : 5126,
+            "count" : 11780,
+            "max" : [
+                72.42845916748047,
+                71.24003601074219,
+                98.5923080444336
+            ],
+            "min" : [
+                -71.88153839111328,
+                -37.61322784423828,
+                -71.12793731689453
+            ],
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 1,
+            "componentType" : 5126,
+            "count" : 11780,
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 2,
+            "componentType" : 5126,
+            "count" : 11780,
+            "type" : "VEC2"
+        },
+        {
+            "bufferView" : 3,
+            "componentType" : 5123,
+            "count" : 22659,
+            "type" : "SCALAR"
+        }
+    ],
+    "bufferViews" : [
+        {
+            "buffer" : 0,
+            "byteLength" : 141360,
+            "byteOffset" : 0
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 141360,
+            "byteOffset" : 141360
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 94240,
+            "byteOffset" : 282720
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 45318,
+            "byteOffset" : 376960
+        }
+    ],
+    "buffers" : [
+        {
+            "byteLength" : 422280,
+            "uri" : "castle.bin"
+        }
+    ]
+}

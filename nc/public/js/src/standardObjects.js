@@ -10,21 +10,33 @@ class Camera3D {
     this.speed = speed
     this.mouseOrientation = mouseOrientation
     this.tween = null
+    this.isControlable = true
   }
 
   // animate position along tween
   tweenSlicePosition(spline, target, time, easemode, delay, repeat, yoyoIsActivated){
     this.tween = new TWEEN.Tween(this.keysAnim.origin)
       .to(this.keysAnim.target, time)
-      .onUpdate(() =>{
-        let camPos = spline.getPointAt( this.keysAnim.origin.x )
-        this.camera.position.copy( camPos )
-        this.camera.lookAt(target)
-      })
       .easing(easemode)
       .delay(delay)
       .repeat(repeat)
       .yoyo( yoyoIsActivated )
+      .onStart( () =>{
+      	this.isControlable = false
+      })
+      .onUpdate(() =>{
+        let camPos = spline.getPointAt( this.keysAnim.origin.x )
+        this.camera.position.copy( camPos )
+        let camRot = new THREE.Euler(
+          this.camera.rotation.x + ((target.x - this.camera.rotation.x )*this.keysAnim.origin.x),
+          this.camera.rotation.y + ((target.y - this.camera.rotation.y)*this.keysAnim.origin.x),
+          this.camera.rotation.z + ((target.z - this.camera.rotation.z)*this.keysAnim.origin.x))
+        this.camera.rotation.copy(camRot )
+      })
+      .onComplete(() =>{
+        this.isControlable = true
+      })
+
   }
 
 }
@@ -47,19 +59,24 @@ class Spline3D {
 }
 
 class Geometry3D {
-  constructor(name, type) {
+  constructor(name, type, size, segments) {
     this.name = name
     this.type = type
+    this.size = size
+    this.segments = segments
     this.mesh = null
     this.tween = null
   }
 
   // get mesh
-  drawObject(size, segments, color){
+  drawObject(color){
     let geometry
     switch(this.type){
       case 'sphere' :
-        geometry = new THREE.SphereBufferGeometry( size, segments, segments )
+        geometry = new THREE.SphereBufferGeometry( this.size, this.segments, this.segments )
+        break
+      case 'plane' :
+        geometry = new THREE.PlaneBufferGeometry( this.size, this.size, this.segments, this.segments )
         break
     }
     let material = new THREE.MeshPhongMaterial( { color : color} )
@@ -137,21 +154,18 @@ class ParticlesPlane3D {
     this.dirSpeedOrign = speed
     this.dirSpeed = speed
     this.dirSpeedMax = speedMax
+    this.isPlaying = true
   }
 
   // get particles
-  draw ( size, color){
+  draw ( size, segments, color){
     let particles = new THREE.Group()
-    const geo = new THREE.SphereBufferGeometry(size)
+    const geo = new THREE.SphereBufferGeometry(size, segments, segments)
     const mat = new THREE.MeshBasicMaterial({color: color})
-    for (var ix = 0; ix < this.amountX; ix++) {
-  		for (var iy = 0; iy < this.amountY; iy++) {
-  				const particle = new THREE.Mesh(geo,mat)
-  				particle.position.x = ix * this.separation - ((this.amountY * this.separation) / 2)
-  				particle.position.z = iy * this.separation - ((this.amountY * this.separation) / 2)
-  				particles.add(particle)
-  		}
-    }
+    for (var ix = 0; ix < this.amountX; ix++)
+  		for (var iy = 0; iy < this.amountY; iy++)
+          particles.add(new THREE.Mesh(geo,mat))
+    this.particles = particles
     return particles
   }
 
@@ -169,7 +183,7 @@ class ParticlesPlane3D {
       for (var iy = 0; iy < this.amountY; iy++) {
         let particle = this.particles.children[i++]
         particle.position.y = (Math.sin((ix + this.count) * 0.3) * this.amplitudePosition) + (Math.sin((iy + this.count) * 0.5) * this.amplitudePosition)
-        particle.scale.x = particle.scale.y = particle.scale.z = (Math.sin((ix + this.count) * 0.3) + 1) * this.amplitudeScale + (Math.sin((iy + this.count) * 0.5) + 1) * this.amplitudeScale
+        particle.scale.x = particle.scale.y = particle.scale.z = (Math.sin((ix + this.count) * 0.3) + 1.8) * this.amplitudeScale + (Math.sin((iy + this.count) * 0.5) + 1) * this.amplitudeScale
       }
     }
     this.count += this.amplitudeSpeed
@@ -177,13 +191,32 @@ class ParticlesPlane3D {
 
   moveDircetion(){
     let i = 0
+    let limit = this.amountX * this.separation / 2
     for (var ix = 0; ix < this.amountX; ix++) {
       for (var iy = 0; iy < this.amountY; iy++) {
         let particle = this.particles.children[i++]
         particle.position.z += this.dirSpeed
-        if(particle.position.z > this.amountX * this.separation / 2) particle.position.z = -this.amountX * this.separation / 2
-        else if(particle.position.z < this.amountX * this.separation / -2) particle.position.z = this.amountX * this.separation / 2
+        if(particle.position.z > limit) particle.position.z = -limit
+        else if(particle.position.z < -limit) particle.position.z = limit
       }
+    }
+  }
+
+  followPlane(){
+    let i = 0
+    for (var ix = 0; ix < this.amountX; ix++) {
+  		for (var iy = 0; iy < this.amountY; iy++) {
+  			this.particles.children[i].position.x = ix * this.separation - ((this.amountY * this.separation) / 2)
+  			this.particles.children[i].position.z = iy * this.separation - ((this.amountY * this.separation) / 2)
+  			i++
+      }
+  	}
+    this.isPlaying = true
+  }
+
+  followShape(){
+    for (var i = 0; i < this.particles.children.length; i++) {
+      this.particles.children[i].position.copy (new THREE.Vector3(0,0,0))
     }
   }
 

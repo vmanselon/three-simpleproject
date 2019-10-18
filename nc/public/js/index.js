@@ -1,143 +1,184 @@
 import * as THREE from './three/build/three.module.js'
 import Stats from './three/examples/jsm/libs/stats.module.js'
 import dat from './three/examples/jsm/libs/dat.gui.module.js'
+import { GLTFLoader } from './three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from './three/examples/jsm/controls/OrbitControls.js'
+import {EffectComposer} from './three/examples/jsm/postprocessing/EffectComposer.js'
+import {RenderPass} from './three/examples/jsm/postprocessing/RenderPass.js'
+import { UnrealBloomPass } from './three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import TWEEN from './tween/src/Tween.js'
 
 // classes
-import {Camera3D, Spline3D, Geometry3D, Ligth3D, ParticlesPlane3D} from './src/standardObjects.js';
+import {Camera3D, Spline3D, Ligth3D} from './src/standardObjects.js'
+import {createColorRange, percent} from './src/utils.js'
+import ParticleSystem from './src/ParticleSystem.js'
 
+// scenes
+let scene, renderer, mainCamera_01, composer
 
-// scene
-const scene = new THREE.Scene();
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-renderer.setSize( window.innerWidth, window.innerHeight )
-renderer.setClearColor(0x000000, 0.0)
-scene.fog = new THREE.FogExp2(0x193c6d, 0.0115)
-document.getElementById('webgl').appendChild(renderer.domElement)
+// utils
+let gui, controls, stats
 
-// helpers
-let stats = new Stats()
-document.body.appendChild(stats.domElement)
-let showHelps = false
-if(showHelps){
-	let gridHelper = new THREE.GridHelper( 50, 50 )
-	scene.add( gridHelper )
-	let axesHelper = new THREE.AxesHelper( 5 )
-	scene.add( axesHelper )
+// particles parameter
+let  particleSystem, particlesContainer, options, spawnerOptions
+let PARTICLE_SIZE = 5.5
+let PARTICLE_MAX = 100000
+let SIZE = 8
+let anchors = []
+let anchorsYLimits = {min: 0, max:0}
+let colorUp = new THREE.Color(231, 183, 130)
+let colorDown = new THREE.Color(62, 216, 191)
+let range = createColorRange(colorUp, colorDown)
+
+//  postprocesing parameter
+let bloomParams = {
+	exposure: 1.0,
+	bloomStrength: 1.9,
+	bloomThreshold: 0.04,
+	bloomRadius: .55
 }
 
-// camera
-let mainCamera_01 = new Camera3D( "mainCamera_01", 75, window.innerWidth/window.innerHeight, 0.1, 1000, 1, 18 )
-mainCamera_01.camera.position.y = 3
-mainCamera_01.camera.position.z = 25
-mainCamera_01.camera.rotation.x = 0
-console.log(mainCamera_01.camera.rotation.x);
-// let curvePoints = new THREE.CatmullRomCurve3( [
-// 	new THREE.Vector3( -10, 0, 10 ),
-// 	new THREE.Vector3( -5, 5, 5 ),
-// 	new THREE.Vector3( 0, 0, 5 ),
-// 	new THREE.Vector3( 5, -5, 5 ),
-// 	new THREE.Vector3( 10, 0, 10 )
-// ] )
-// let spliceCam_01 = new Spline3D('spliceCam_01', curvePoints)
-// spliceCam_01.line = spliceCam_01.drawLine(50, 'rgb(255,0,0)')
-// spliceCam_01.line.material.visible = false
-// scene.add(spliceCam_01.line)
-// mainCamera_01.tweenSlicePosition(
-// 	spliceCam_01.pointsArray, // spline points
-// 	new THREE.Vector3(0,0,0), // target camera point
-// 	15000, // duration
-// 	TWEEN.Easing.Quadratic.InOut,  //ease
-// 	0, // delay
-// 	Infinity, // repeat
-// 	true) // yoyo
-// mainCamera_01.tween.start()
+// manager
+let debug = false
 
-// ligths
-let spotLight_01 = new Ligth3D('spotLight_01', 'spotLight', 1.5, 'rgb(255,100,50)', true )
-spotLight_01.mesh = spotLight_01.instanciateLigth()
-spotLight_01.mesh.position.set(2,2,0)
-//scene.add(spotLight_01.mesh)
-let pointLight_01 = new Ligth3D('pointLight_01', 'pointLight', 3, 'rgb(120,120,255)', true )
-pointLight_01.mesh = pointLight_01.instanciateLigth()
-pointLight_01.mesh.position.set(-4,1,2)
-//scene.add(pointLight_01.mesh)
-let directionalLight = new Ligth3D('directionalLight', 'directionalLight', 1, 'rgb(255,255,255)', true )
-directionalLight.mesh = directionalLight.instanciateLigth()
-directionalLight.mesh.position.set(2,5,2)
-//scene.add(directionalLight.mesh)
+// awake
+init()
+renderer.setAnimationLoop(animate)
 
-// objects
-let sphere_01 = new Geometry3D('sphere_01', 'sphere')
-sphere_01.mesh = sphere_01.drawObject(1, 32, 'rgb(120,120,120)')
-// scene.add(sphere_01.mesh)
-// sphere_01.tweenPosition(sphere_01.mesh.position, // orinal position
-// 	new THREE.Vector3(0,3,0), // target position
-// 	2000, //duration
-// 	TWEEN.Easing.Quadratic.InOut, // ease
-// 	0, // delay
-// 	Infinity, // repeat
-// 	true) // yoyo
-// sphere_01.tween.start()
+// start
+function init(){
 
-// particles plane
-let particleContainer = new ParticlesPlane3D('particle_wave', // name
-	80, // amount
-	2,  // seperation
-	0.5, // amplitude position
-	1.2, // amplitude scale
-	0.09, // amplitudeSpeed
-	0.1, // direction speed
-	0.8) // direction speed max)
-particleContainer.particles = particleContainer.draw( 0.015, 0xffffff )
-scene.add(particleContainer.particles)
+	// scene
+	scene = new THREE.Scene();
+	renderer = new THREE.WebGLRenderer({ antialias: true })
+	renderer.setSize( window.innerWidth, window.innerHeight )
+	renderer.setClearColor(0x000000, 1)
+	scene.fog = new THREE.FogExp2(0x000000, 0.0215)
+	document.getElementById('webgl').appendChild(renderer.domElement)
 
-// controls
-//let controls = new OrbitControls( mainCamera_01.camera, renderer.domElement )
-//controls.autoRotate = true
+	// helpers
+	stats = new Stats()
+	document.body.appendChild(stats.domElement)
+	if(debug){
+		let gridHelper = new THREE.GridHelper( 50, 50 )
+		scene.add( gridHelper )
+		let axesHelper = new THREE.AxesHelper( 5 )
+		scene.add( axesHelper )
+	}
 
-// eventListener
-window.addEventListener('resize', onWindowResize, false)
-document.addEventListener('mousemove', onMouseMove, true)
-document.addEventListener( 'mousewheel', onMouseWheel, true );
+	// camera
+	mainCamera_01 = new Camera3D( "mainCamera_01", 16, window.innerWidth/window.innerHeight, 0.1, 1000, 1, 10 )
+ 	mainCamera_01.camera.position.copy(new THREE.Vector3(10,5,40))
 
-// GUI
-let gui = new dat.GUI()
+	// postprocessing
+	composer = new EffectComposer(renderer)
+	let renderScene = new RenderPass( scene, mainCamera_01.camera )
+	composer.addPass(renderScene)
+	let bloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ))
+	bloomPass.threshold = bloomParams.bloomThreshold
+	bloomPass.strength = bloomParams.bloomStrength
+	bloomPass.radius = bloomParams.bloomRadius
+	composer.addPass( bloomPass )
 
-let folder_wave = gui.addFolder('camera')
-gui.add(mainCamera_01, 'mouseOrientation', 5, 20)
 
-let folder_camera = gui.addFolder('wave animation')
-gui.add(particleContainer, 'amplitudePosition', 0.1, 2)
-gui.add(particleContainer, 'amplitudeSpeed', 0.01, 0.5)
-gui.add(particleContainer, 'dirSpeed', 0.1, 1)
+  // particle system
+	const textureLoader = new THREE.TextureLoader()
+	options = {
+		maxParticles: PARTICLE_MAX,
+		position: new THREE.Vector3(0,0,0),
+		positionRandomness: 1,
+		baseVelocity: new THREE.Vector3(0, 0, 0),
+		velocity: new THREE.Vector3(0, 0, 0),
+		velocityRandomness: 1.0,
+		acceleration: new THREE.Vector3(0,0,0),
+		baseColor: new THREE.Color(1.0,1.0,1.0),
+		color: new THREE.Color(1.0,1.0,1.0),
+		colorRandomness: 0,
+		lifetime: Infinity,
+		size: PARTICLE_SIZE,
+		sizeRandomness: PARTICLE_SIZE*2,
+	  particleSpriteTex: textureLoader.load('./assets/textures/sprites/disc.png'),
+	  blending: THREE.AdditiveBlending,
+	}
+	spawnerOptions = {
+	  spawnRate: 500, // create at the rate of 500 particles/sec
+	  timeScale: 1.0
+	}
+	particleSystem = new ParticleSystem(options)
+	// particle container
+	let loader = new GLTFLoader()
+	let particlesContainer
+	loader.load( './assets/models/castle/castle.gltf', function ( gltf ) {
+    // get the model
+		gltf.scene.traverse( function ( node ) {
+			if ( node.isMesh ) particlesContainer = node
+		} )
+		particlesContainer.material = new THREE.MeshBasicMaterial( { color : '0x110000', wireframe: true, visible: false} )
+		scene.add( particlesContainer )
+		// ajust postion and size
+		particlesContainer.scale.copy(new THREE.Vector3(0.05,0.05,0.05))
+		// set parent
+		particlesContainer.add(particleSystem)
+		console.log(particlesContainer)
+    //anchor points / vertices
+		for (var i = 0; i < particlesContainer.geometry.attributes.position.count; i++) {
+			let x = particlesContainer.geometry.attributes.position.array[i * 3 + 0]
+			let y = particlesContainer.geometry.attributes.position.array[i * 3 + 1]
+			let z = particlesContainer.geometry.attributes.position.array[i * 3 + 2]
+			anchors.push(new THREE.Vector3(x,y,z))
+			if(y < anchorsYLimits.min) anchorsYLimits.min = y
+			else if(y > anchorsYLimits.max) anchorsYLimits.max = y
+		}
+		//spawn particles
+		particlesContainer.add(particleSystem)
+		for (let i = 0; i < anchors.length; i++) {
+			// position
+			options.position.copy(anchors[i])
+      // color
+			let currentColor = range[Math.round(percent(options.position.y,anchorsYLimits.min,anchorsYLimits.max)*254)]
+			options.color = new THREE.Color(currentColor.r/255,currentColor.g/255,currentColor.b/255)
+			particleSystem.spawnParticle( options )
+		}
+	})
 
-// animate
-let animate = function () {
-	requestAnimationFrame( animate )
-	renderer.render( scene, mainCamera_01.camera )
-  stats.update()
-	TWEEN.update()
-	gui.updateDisplay()
+	// controls
+	controls = new OrbitControls( mainCamera_01.camera, renderer.domElement )
 
-	particleContainer.update()
+	// eventListener
+	window.addEventListener('resize', onWindowResize, false)
+
+	// GUI
+	gui = new dat.GUI()
+	let folder_bloom = gui.addFolder('bloom')
+	folder_bloom.add( bloomParams, 'exposure', 0.1, 2 ).onChange( function ( value ) {
+		renderer.toneMappingExposure = Math.pow( value, 4.0 )
+	} )
+	folder_bloom.add( bloomParams, 'bloomStrength', 0.0, 3.0 ).onChange( function ( value ) {
+		bloomPass.strength = Number( value )
+	} )
+	folder_bloom.add( bloomParams, 'bloomThreshold', 0, 1.0 ).onChange( function ( value ) {
+		bloomPass.threshold = Number( value )
+	} )
+	folder_bloom.add( bloomParams, 'bloomRadius', 0.0, 1.0 ).step( 0.01 ).onChange( function ( value ) {
+		bloomPass.radius = Number( value )
+	} )
 
 }
 
-animate()
+// update
+function animate(time) {
+	composer.render(time)
+  stats.update(time)
+	TWEEN.update(time)
+	gui.updateDisplay(time)
+
+  // particles
+	particleSystem.update(time)
+}
 
 // events listener functions
 function onWindowResize() {
-  mainCamera_01.camera.aspect = window.innerWidth / window.innerHeight;
-  mainCamera_01.camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-function onMouseMove(event) {
-	mainCamera_01.camera.rotation.y = (event.clientX / window.innerWidth - 0.5) / -mainCamera_01.mouseOrientation
-	mainCamera_01.camera.rotation.x = (event.clientY / window.innerHeight-0.5) / -mainCamera_01.mouseOrientation
-}
-function onMouseWheel(event) {
-	if(particleContainer.dirSpeed < particleContainer.dirSpeedMax)
-		particleContainer.dirSpeed += particleContainer.dirSpeed/5
+  mainCamera_01.camera.aspect = window.innerWidth / window.innerHeight
+  mainCamera_01.camera.updateProjectionMatrix()
+  renderer.setSize(window.innerWidth, window.innerHeight)
 }
